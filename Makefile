@@ -7,6 +7,7 @@ all:
 clean:
 	(cd cmd && make clean)
 	(cd brain && make clean)
+	(cd nicole-hw01 && make clean)
 	(cd plugins/car_control && make clean)
 
 .PHONY: all clean
