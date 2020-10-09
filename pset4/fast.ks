@@ -1,4 +1,5 @@
 lock throttle to 1.
+sas off.
 stage.
 wait until stage:ready.
 launch().
@@ -7,9 +8,8 @@ shutup().
 function launch {
   print("Begin launch sequence!").
   // until stable orbit is reached
-  until ship:apoapsis > 150000 {
+  until ship:apoapsis > 100000 {
     // calculated least-squares best fit for angle trajectory
-    // local shipTrajectory is 1.52685E-2 * alt:radar^2 - 0.00169707 * alt:radar + 91.52510.
     lock shipTrajectory to 90.1367 - 1.03287 * alt:radar^0.409511.
     set targetPitch to shipTrajectory.
     set targetDirection to 90.
@@ -45,17 +45,26 @@ function stager {
   }
 }
 
+// initiates maneuvers around various moons
 function beginManeuver {
   print("Begin maneuver node process").
 
   // calclulate circularization prograde burn around Kerbin
   local progradeBurn is getCircularBurn().
+  print("Circularize Kerbin").
   createManeuverNode(list(time:seconds + eta:apoapsis, 0, 0, progradeBurn)).
   // calculate circularization prograde burn around Mun
+  wait 5.
   local progradeMunBurn is getCircularMunBurn().
-  createManeuverNode(list(time:seconds + eta:apoapsis, 0, 0, progradeMunBurn)).
-  
-  // TODO: calculate circularization prograde burn around Minimus
+  print("Mun Burn: " + progradeMunBurn).
+  print("Circularize Mun").
+  local munTime is eta_true_anom(0).
+  print("Mun Time: " + time:seconds + munTime).
+  createManeuverNode(list(time:seconds + munTime, 0, 0, progradeMunBurn)).
+  local progradeMinmusBurn is getCircularMinmusBurn().
+  print("Circularize Minmus").
+  local minmusTime is eta_true_anom(180).
+  createManeuverNode(list(time:seconds + minmusTime, 0, 0, progradeMinmusBurn)).
 }
 
 // calculates the eccentricity from a given maneuver based on burn rates
@@ -64,43 +73,55 @@ function getEcc {
   print(nums).
   // maneuver node: untilTime (secs), radial (m/s), normal (m/s), prograde (m/s)
   local maneuver is node(nums[0], nums[1], nums[2], nums[3]).
-  print("DATA: " + maneuver).
   add maneuver.
   local ecc is maneuver:orbit:eccentricity.
   remove maneuver.
   return ecc.
 }
 
+// creates and calculates node properties
 function createManeuverNode {
   print("Creating maneuver node.").
   parameter list.
+
   local untilTime to list[0].
   local radial to list[1].
   local normal to list[2].
   local prograde to list[3].
-
   local maneuver is node(untilTime, radial, normal, prograde).
 
-  // avoid targeting Kerbin
-  if radial = 0 and normal = 0 and prograde = 0 {
-    return.
-  }
-
-  print("Setting maneuver node...").
-  add maneuver.
+  addManeuver(maneuver).
   local startTime is getStartTime(maneuver).
-  warpto(startTime - 10).
-  print("WARPING!").
-
   wait until time:seconds > startTime - 10.
-  lock steering to maneuver:burnvector.
-
+  lockSteering(maneuver).
   wait until time:seconds > startTime.
   lock throttle to 1.
 
   until isManeuverComplete(maneuver) {
     stager().
   }
+
+  lock throttle to 0.
+  unlock steering.
+  removeManeuver(maneuver).
+}
+
+// locks steering to aim towards maneuver target
+function lockSteering {
+  parameter maneuver.
+  lock steering to maneuver:burnvector.
+}
+
+// removes maneuver node from flight
+function removeManeuver {
+  parameter maneuver.
+  remove maneuver.
+}
+
+// adds maneuver node to flight
+function addManeuver {
+  parameter maneuver.
+  add maneuver.
 }
 
 ////////// UTILITY FUNCTIONS //////////
@@ -119,7 +140,7 @@ function getTrueAnomaly {
 
 // use hohmann transfer to calculate circularization burn for Kerbin
 function getCircularBurn {
-  local a2 is 150000 + ship:body:radius.
+  local a2 is 100000 + ship:body:radius.
   local aTrans is ship:orbit:semimajoraxis.
   local kerbin_g is 3.53160E12.
 
@@ -136,49 +157,42 @@ function getCircularBurn {
 
 // use hohmann transfer to calculate circularization burn for Mun
 function getCircularMunBurn {
-  local kerbin_g is 3.53160E12.
-  local mun_g is 6.5138398E10.
-
-  local a1 is 150000 + ship:body:radius.
-  local a2 is a1 + ship:orbit:body:altitude.
+  local a1 is 100000 + kerbin:radius.
+  local aTrans is (a1 + mun:body:radius + mun:altitude) / 2.
   
   // rocket's calculated specific mechanical energy
-  local sme_trans is -(mun_g / (2 * a2)).
-  local sme1 is -(kerbin_g / (2 * a1)).
-
-  local aTrans is ship:orbit:semimajoraxis.
-  local sme2 is -(mun_g / (2 * aTrans)).
+  local smeTrans is -(ship:body:mu / (2 * aTrans)).
+  local sme1 is -(ship:body:mu / (2 * a1)).
 
   // body radius
-  local pos_mag2 is a2.
-  local v2 is sqrt(2 * ((kerbin_g / pos_mag2) + sme2)).
-  local v_trans is sqrt(2 * ((kerbin_g / pos_mag2) + sme_trans)).
-  local v1 is sqrt(2 * ((kerbin_g / pos_mag2) + sme1)).
-  print("v trans " + v_trans).
-  print("v2 " + v2).
-  local dv is v1 + v2.
+  local pos_mag1 is a1.
+  local v_trans is sqrt(2 * ((kerbin:mu / pos_mag1) + smeTrans)).
+  local v1 is sqrt(2 * ((kerbin:mu / pos_mag1) + sme1)).
+  local dv is abs(v_trans - v1).
   print("DV: " + dv).
   return dv.
 }
 
-// functions provided by CheersKevin
-// function executeManeuver {
-//   parameter mList.
-//   local maneuver is node(mList[0], mList[1], mList[2], mList[3]).
-//   add maneuver.
-//   local startTime is getStartTime(maneuver).
-//   wait until time:seconds > startTime - 10.
-//   lock steering to maneuver:burnvector.
-//   wait until time:seconds > startTime.
-//   lock throttle to 1.
-//   until isManeuverComplete(maneuver) {
-//     stager().
-//   }
-//   lock throttle to 0.
-//   unlock steering.
-//   remove maneuver.
-// }
+// use hohmann transfer to calculate circularization burn for Minmus
+function getCircularMinmusBurn {
+  local org is 100000 + kerbin:radius.
+  local a1 is (org + minmus:body:radius).
+  local aTrans is (a1 + minmus:body:radius + minmus:altitude) / 2.
 
+  // body radius
+  local pos_mag1 is aTrans.
+
+  // rocket's calculated specific mechanical energy
+  local smeTrans is -(ship:body:mu / (2 * aTrans)).
+  local sme1 is -(ship:body:mu / (2 * a1)).
+  local v_trans is sqrt(2 * ((kerbin:mu / pos_mag1) + smeTrans)).
+  local v1 is sqrt(2 * ((kerbin:mu / pos_mag1) + sme1)).
+  local dv is abs(v_trans - v1).
+  print("DV: " + dv).
+  return dv.
+}
+
+// FUNCTIONS ATTRIBUTED TO CHEERSKEVIN
 // calculates the start time for the maneuver node
 function getStartTime {
   parameter node.
@@ -190,76 +204,62 @@ function getStartTime {
   list engines in myEngines.
   for en in myEngines {
     if en:ignition and not en:flameout {
+      // calculate remaining impulse
       set isp to isp + (en:isp * (en:availableThrust / ship:availableThrust)).
     }
   }
 
-  // calculate with Tsiolkovsky ideal rocket equation
+  // Tsiolkovsky ideal rocket equation
   local mf is ship:mass / constant():e^(dV / (isp * g0)).
   local fuelFlow is ship:availableThrust / (isp * g0).
   local t is (ship:mass - mf) / fuelFlow.
 
   set maneuverBurn to t.
 
+  // calculate time of dV for the node function
   return time:seconds + node:eta - maneuverBurn / 2.
 }
 
 function isManeuverComplete {
-  parameter mnv.
-  if not(defined originalVector) or originalVector = -1 {
-    declare global originalVector to mnv:burnvector.
+  parameter maneuver.
+  
+  if not(defined v1) or v1 = -1 {
+    declare global v1 to maneuver:burnvector.
   }
-  if vang(originalVector, mnv:burnvector) > 90 {
-    declare global originalVector to -1.
+
+  if vang(v1, maneuver:burnvector) > 90 {
+    declare global v1 to -1.
     return true.
   }
   return false.
 }
 
-// // calculates the start time of the maneuver node
-// function getStartTime {
-//   parameter maneuver.
+// Attributed to nulib-kos (Nolan Bock)
+// calculate the estimated time to reach a body's position
+function eta_true_anom {
+    declare local parameter tgt_lng.
+    // convert the positon from reference to deg from PE (which is the true anomaly)
+    local ship_ref to mod(obt:lan+obt:argumentofperiapsis+obt:trueanomaly,360).
+    print("Ship ref: " + ship_ref).
 
-//   local dV is maneuver:deltaV:mag.
-//   local g0 is 9.80665.
-//   local isp is 0.
+    local node_true_anom to (mod (720+ tgt_lng - (obt:lan + obt:argumentofperiapsis),360)).
 
-//   list engines in myEngines.
-//   for en in myEngines {
-//     if en:ignition and not en:flameout {
-//       set isp to isp + (en:isp * (en:availableThrust / ship:availableThrust)).
-//     }
-//   }
+    local node_eta to 0.
+    local ecc to OBT:ECCENTRICITY.
+    if ecc < 0.001 {
+        set node_eta to SHIP:OBT:PERIOD * ((mod(tgt_lng - ship_ref + 360,360))) / 360.
 
-//   local mf is ship:mass / constant():e^(dV / (isp * g0)).
-//   local fuelFlow is ship:availableThrust / (isp * g0).
-// }
+    } else {
+        local eccentric_anomaly to  arccos((ecc + cos(node_true_anom)) / (1 + ecc * cos(node_true_anom))).
+        local mean_anom to (eccentric_anomaly - ((180 / (constant():pi)) * (ecc * sin(eccentric_anomaly)))).
 
+        // time from periapsis to point
+        local time_2_anom to  SHIP:OBT:PERIOD * mean_anom /360.
 
-// // checks whether a maneuver is complete
-// function isManeuverComplete {
-//   parameter maneuver.
-//   if not(defined originalVector) or originalVector = -1 {
-//     declare global originalVector to maneuver:burnvector.
-//   }
-//   if vang(originalVector, maneuver:burnvector) > 90 {
-//     declare global originalVector to -1.
-//     return true.
-//   }
-//   return false.
-// }
+        local my_time_in_orbit to ((OBT:MEANANOMALYATEPOCH)*OBT:PERIOD /360).
+        set node_eta to mod(OBT:PERIOD + time_2_anom - my_time_in_orbit,OBT:PERIOD) .
 
-// // calculate time of dV for the node function
-// function getManeuverBurn {
-//   parameter maneuver.
-//   local g0 is 9.8.
-//   local isp is 0.
-//   local dV is maneuver:deltaV:mag.
-
-//   // dV = isp * g0 * ln(m0 / mf)
-//   local mf is m0 / e^(dV / (isp * g0)).
-//   local fuel is ship:maxthrust / (isp * g0).
-//   local t is (ship:mass - mf) / fuel.
-
-//   return t.
-// }
+    }
+    print("Node eta: " + node_eta).
+    return node_eta.
+}
