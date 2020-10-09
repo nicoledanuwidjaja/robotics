@@ -1,8 +1,9 @@
-# Land on the Mun
+# Project 3 - Land on the Mun
 
 Build a custom rocket, launch it into space, transfer to Munar orbit, and land safely. Write a KerboScript program that automates the full Munar landing mission.
 
 Nicole Danuwidjaja
+
 No YouTube video. This did not land on Mun.
 
 Comments:
