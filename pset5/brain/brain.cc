@@ -1,9 +1,10 @@
- #include <iostream>
+#include <iostream>
 #include <cmath>
 #include <math.h>
-
+#include <ctime>
 #include "robot.hh"
 
+using namespace gazebo;
 using std::cout;
 using std::endl;
 
@@ -11,9 +12,10 @@ typedef enum {
     LEFT, 
     RIGHT, 
     FORWARD, 
-    BACKWARD 
+    BACKWARD
 } MOVE;
 
+double simTime = 0;
 
 // Pos_t range: (-PI, +PI)
 // -/+ PI: SOUTH
@@ -59,13 +61,21 @@ void turn_robot(Robot* robot, const MOVE type) {
         case LEFT:
             if (leftAngleDiff > 0.01) {
                 cout << leftAngleDiff << endl;
-                robot->set_vel(-1.0, 1.0);
+                robot->set_vel(-4.0, 4.0);
+
+                if (leftAngleDiff > 0.005) {
+                    robot->set_vel(-1.0, 1.0);
+                }
             }
             break;
         case RIGHT:
             if (rightAngleDiff > 0.01) {
                 cout << rightAngleDiff << endl;
-                robot->set_vel(1.0, -1.0);
+                robot->set_vel(4.0, -4.0);
+
+                if (rightAngleDiff > 0.005) {
+                    robot->set_vel(1.0, -1.0);
+                }
             }
             break;
         case FORWARD:
@@ -76,80 +86,49 @@ void turn_robot(Robot* robot, const MOVE type) {
 
     is_following = true;
 }
-    // turn left
-    // if (leftAngleDiff > 0.01) {
-    //     is_turning = true;
-    //     cout << leftAngleDiff << endl;
-    //     robot->set_vel(-1.0, 1.0);
-    //     walls_seen++
-    // } else {
-    //     is_turning = false;
-    //     cout << "RANGE NOW: " << robot->range << endl;
-    //     robot->set_vel(3.0, 3.0);
-    // }
-
-    // cout << "Left: " << leftAngleDiff << endl;
-    // cout << "Right: " << rightAngleDiff << endl;
-
-    // check if turning left or right is possible
-    // while(leftAngleDiff > buffer || rightAngleDiff > buffer) {
-    //     if (leftAngleDiff > buffer && leftAngleDiff < WEST) {
-    //         cout << "TURNING LEFT: " << leftAngleDiff << endl;
-    //         robot->set_vel(-3.0, 3.0);
-    //     }
-        
-    //     if (rightAngleDiff > buffer && rightAngleDiff < EAST) {
-    //         cout << "TURNING RIGHT" << endl;
-    //         robot->set_vel(3.0, -3.0);
-    //     }
-    //     cout << "Repeat" << endl;
-    // }
-
-    // return;
-    // cout << angle << endl;
-    // if (angle == float(WEST)) {
-    //     // turn left from NORTH to WEST
-    //     while (robot->range < angle) {
-    //         cout << "TURNING LEFT: " << robot->range << " Angle: " << angle << endl;
-    //         robot->set_vel(-3.0, 3.0);
-    //     }
-    // } else if (angle == float(EAST)) {
-    //     while (robot->range > angle) {
-    //         cout << "TURNING RIGHT" << robot->range << endl;
-    //         robot->set_vel(3.0, -3.0);
-    //     }
-    // } else {
-    //     // robot->set_vel(3.0, 3.0);
-    // }
-// }if (leftAngleDiff > 0.01) {
-    //     is_turning = true;
-    //     cout << leftAngleDiff << endl;
-    //     robot->set_vel(-1.0, 1.0);
-    //     walls_seen++
-    // } else {
-    //     is_turning = false;
-    //     cout << "RANGE NOW: " << robot->range << endl;
-    //     robot->set_vel(3.0, 3.0);
-    // }
 
 
 void wall_follow(Robot* robot) {
+    gazebo::common::Time currTime = gazebo::common::Time::GetWallTime();
     const double buffer = 0.1;
     const double leftAngleDiff = angle_diff(robot->range, WEST);
-    const double rightAngleDiff = abs(angle_diff(robot->range, EAST));
-
+    const double rightAngleDiff = angle_diff(robot->range, EAST);
 
     // if (leftAngleDiff < buffer || rightAngleDiff < buffer || robot->range < 1.7) {
     //     robot->set_vel(5.0, 5.0);
     // }
 
-    // move faster if facing north or south and enter opening
-    // cout << angle_diff(robot->range, NORTH) << endl;
-    if (abs(angle_diff(robot->range, NORTH)) < buffer && robot->range < 4.0) {
-        cout << "Going straight-ish" << endl;
-        robot->set_vel(5.0, 5.0);
-        is_following = false;
-        is_opening = true;
+    // spot opening
+    cout << "Range: " << robot->range << endl;
+    if(robot->range > 4.0) {
+        // move faster if facing north or south and enter opening
+        if (abs(angle_diff(robot->range, NORTH)) < buffer) {
+            cout << "Going straight-ish" << endl;
+
+            turn_robot(robot, FORWARD);
+            
+            // wait before turning while robot moves forward
+            if (simTime == 0) {
+                simTime = currTime.Double();
+            }
+
+            cout << "TIME:" << simTime - currTime.Double() << endl;
+            if (currTime.Double() - simTime > 2.5) {
+                is_opening = true;
+            }
+
+            // decide to turn left or right
+            if (is_opening) {
+                cout << "open" << endl;
+                if (leftAngleDiff > 0) {
+                    turn_robot(robot, LEFT);
+                } else if (rightAngleDiff < 0) {
+                    turn_robot(robot, RIGHT);
+                }
+            }
+        }
+    } else {
+        turn_robot(robot, FORWARD);
     }
 }
 
@@ -161,39 +140,26 @@ void callback(Robot* robot) {
 
     cout << "Robot's angle: " << robot->pos_t << endl;
 
-    double range = robot->range;
-
     // if encounters a wall
-    if (robot->range < 0.5) {
+    if (robot->range < 0.7 && robot->range != 0) {
         // check if robot is facing west or east
-        if (is_following) {
-            cout << "Do following turn if detecting a wall" << endl;
-            if (abs(angle_diff(robot->range, WEST)) < buffer) {
-                turn_robot(robot, RIGHT);
-            } else if (abs(angle_diff(robot->range, EAST)) < buffer) {
-                turn_robot(robot, LEFT);
-            }
-        }
-
-        cout << "Attempt turning" << endl;
+        cout << "Wall encountered! Turning..." << endl;
         if (leftAngleDiff > rightAngleDiff) {
             turn_robot(robot, LEFT);
-            if (is_following) {
-                cout << "Following wall left!" << endl;
-                wall_follow(robot);
-            }
         } else { 
             turn_robot(robot, RIGHT);
-            if (is_following) {
-                cout << "Following wall right!" << endl;
-                wall_follow(robot);
-            }
         }
     } else {
         // check if there is an opening
-        if (is_opening && !is_following) {
-            cout << "Opening Detected!" << endl;
+        if (is_opening && abs(angle_diff(robot->range, EAST)) < buffer) {
             turn_robot(robot, FORWARD);
+            cout << "Opening!" << endl;
+            return;
+        }
+
+        if (is_following) {
+            cout << "Following wall!" << endl;
+            wall_follow(robot);
             return;
         }
 
