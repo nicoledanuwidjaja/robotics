@@ -22,6 +22,8 @@ static GtkWidget *drawing_area = NULL;
 GMutex mutex_interface;
 
 /* Map properties */
+int START_X = -20;
+int START_Y = -20;
 int CELL_WIDTH = 50;
 int CELL_HEIGHT = 50;
 int W_WIDTH, W_HEIGHT; // default: 618 x 618
@@ -30,10 +32,6 @@ int NUM_COLS = W_HEIGHT / CELL_HEIGHT;
 /* Occupancy Grid Mapping map representation */
 vector<vector<double> > map(NUM_ROWS, vector<double>(NUM_COLS));   
 
-/* Robot State Properties */
-bool is_following = false;
-bool is_turning = false;
-bool is_opening = false;
 
 static void
 clear_surface (void)
@@ -86,12 +84,6 @@ draw_cb(GtkWidget *widget,
     g_mutex_lock(&mutex_interface);
     cairo_set_source_surface(cr, surface, 0, 0);
     cairo_paint(cr);
-
-    /*
-    int ww, hh;
-    gtk_window_get_size(GTK_WINDOW(window), &ww, &hh);
-    cout << "window: " << ww << "," << hh << endl;
-    */
     g_mutex_unlock(&mutex_interface);
     return FALSE;
 }
@@ -233,16 +225,19 @@ activate (GtkApplication *app,
                           | GDK_POINTER_MOTION_MASK);
 
     gtk_widget_show_all(window);
+    gdk_threads_init();
 }
 
 /* Draws the angle of range of the sensor hit relative to the robot's current position and draws point with Cairo */
 void
 viz_hit(float range, float angle)
 {
-    g_mutex_lock(&mutex_interface);
+    GDK_THREADS_ENTER();
     guard _gg(mx);
+    g_mutex_lock(&mutex_interface);
 
     // default: 309
+    gtk_window_get_size(GTK_WINDOW(window), &W_WIDTH, &W_HEIGHT);
     int mid = min(W_WIDTH, W_HEIGHT) / 2;
     angle += (M_PI / 2.0);
     float dx = 0.5 * range * cos(angle);
@@ -265,6 +260,27 @@ viz_hit(float range, float angle)
 
     draw_brush(drawing_area, xx, yy);
     g_mutex_unlock(&mutex_interface);
+    GDK_THREADS_LEAVE();
+}
+
+
+/* Render cell points on map based on their probability. */
+int 
+render_points()
+{
+    GDK_THREADS_ENTER();
+    g_mutex_lock(&mutex_interface);
+    // find position in map representation and store value
+    for (int row = 0; row < NUM_ROWS; row++) {
+        for (int col = 0; col < NUM_COLS; col++) {
+            double x = row * CELL_WIDTH + (CELL_WIDTH / 2);
+            double y = -(col * CELL_HEIGHT + (CELL_HEIGHT / 2));
+            // add the cell's value to map
+            draw_brush(drawing_area, x, y);
+        }
+    }
+    g_mutex_unlock(&mutex_interface);
+    GDK_THREADS_LEAVE();
 }
 
 /* 
@@ -275,8 +291,6 @@ int
 viz_pos(float pos_x, float pos_y, float angle, float dist) 
 {
     g_mutex_lock(&mutex_interface);
-
-    gtk_window_get_size(GTK_WINDOW(window), &W_WIDTH, &W_HEIGHT);
     guard _gg(mx);
     cout << "pos_x, pos_y " << pos_x << ", " << pos_y << endl;
 
@@ -284,31 +298,26 @@ viz_pos(float pos_x, float pos_y, float angle, float dist)
     int mid = min(W_WIDTH, W_HEIGHT) / 2;
 
     // assign a Bayesian probability value based on length of distance
+    
+    
     double prob = 0;
-    if (dist < 100) {
+    if (dist < 2) {
         prob = 0.9;
-    }
-
-    // find position in map representation and store value
-    for (int row = 0; row < NUM_ROWS; row++) {
-        for (int col = 0; col < NUM_COLS; col++) {
-            double x = row * CELL_WIDTH + (CELL_WIDTH / 2);
-            double y = -(col * CELL_HEIGHT + (CELL_HEIGHT / 2));
-            // add the cell's value to map
-            // map[row][col] = map[row][col] + prob;
-        }
+    } else {
+        dist = 2;
     }
 
     // TODO: Find position
-    float new_x = dist * cos(pos_x);
-    float new_y = dist * sin(pos_y);
-    cout << "new pos_x, new pos_y " << new_x << ", " << new_y << endl;
-    int x = mid + (mid * pos_x);
-    int y = W_HEIGHT - (mid + (mid * pos_y));
-
-    draw_brush(drawing_area, x, y);
+    cout << "dist: " << dist << endl;
+    float x = dist * cos(pos_x);
+    float y = dist * sin(pos_y);
+    cout << "new pos_x, new pos_y " << x << ", " << y << endl;
+    // int x = mid + (CELL_WIDTH * new_x) + START_X;
+    // int y = W_HEIGHT - (mid + (CELL_HEIGHT * new_y) + START_Y);
+    cout << "x, y: " << x << y << endl;
+    map[x][y] = map[x][y] + prob;
+    render_points();
     g_mutex_unlock(&mutex_interface);
-
 }
 
 /* Initializes the visualizer */
@@ -319,6 +328,7 @@ viz_run(int argc, char **argv)
 
     GtkApplication *app;
 
+    gtk_window_get_size(GTK_WINDOW(window), &W_WIDTH, &W_HEIGHT);
     app = gtk_application_new("site.ntuck-neu.brain", G_APPLICATION_FLAGS_NONE);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);

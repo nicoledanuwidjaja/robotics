@@ -42,97 +42,11 @@ draw_point(Robot* robot)
     }
 }
 
-// performs desired rotation on robot 
-void 
-turn_robot(Robot* robot, const MOVE type) 
-{
-    const double buffer = 0.1;
-    const double leftAngleDiff = angle_diff(robot->range, WEST);
-    const double rightAngleDiff = abs(angle_diff(robot->range, EAST));
-
-    is_turning = true;
-
-    switch(type) {
-        case LEFT:
-            if (leftAngleDiff > 0.01) {
-                cout << leftAngleDiff << endl;
-                robot->set_vel(-4.0, 4.0);
-
-                if (leftAngleDiff > 0.005) {
-                    robot->set_vel(-1.0, 1.0);
-                }
-            }
-            break;
-        case RIGHT:
-            if (rightAngleDiff > 0.01) {
-                cout << rightAngleDiff << endl;
-                robot->set_vel(4.0, -4.0);
-
-                if (rightAngleDiff > 0.005) {
-                    robot->set_vel(1.0, -1.0);
-                }
-            }
-            break;
-        case FORWARD:
-            robot->set_vel(3.0, 3.0);
-            is_turning = false;
-            break;
-    }
-
-    is_following = true;
-}
-
-void 
-wall_follow(Robot* robot) 
-{
-    gazebo::common::Time currTime = gazebo::common::Time::GetWallTime();
-    const double buffer = 0.1;
-    const double leftAngleDiff = angle_diff(robot->range, WEST);
-    const double rightAngleDiff = angle_diff(robot->range, EAST);
-
-    // if (leftAngleDiff < buffer || rightAngleDiff < buffer || robot->range < 1.7) {
-    //     robot->set_vel(5.0, 5.0);
-    // }
-
-    // spot opening
-    cout << "Range: " << robot->range << endl;
-    if(robot->range > 4.0) {
-        // move faster if facing north or south and enter opening
-        if (abs(angle_diff(robot->range, NORTH)) < buffer) {
-            cout << "Going straight-ish" << endl;
-
-            turn_robot(robot, FORWARD);
-            
-            // wait before turning while robot moves forward
-            if (simTime == 0) {
-                simTime = currTime.Double();
-            }
-
-            cout << "TIME:" << simTime - currTime.Double() << endl;
-            if (currTime.Double() - simTime > 2.5) {
-                is_opening = true;
-            }
-
-            // decide to turn left or right
-            if (is_opening) {
-                cout << "open" << endl;
-                if (leftAngleDiff > 0) {
-                    turn_robot(robot, LEFT);
-                } else if (rightAngleDiff < 0) {
-                    turn_robot(robot, RIGHT);
-                }
-            }
-        }
-    } else {
-        turn_robot(robot, FORWARD);
-    }
-}
-
 void
 callback(Robot* robot)
 {
-    const double leftAngleDiff = angle_diff(robot->range, 1.3);
-    const double rightAngleDiff = abs(angle_diff(robot->range, -1.3));
+    // const double leftAngleDiff = angle_diff(robot->range, 1.3);
+    // const double rightAngleDiff = abs(angle_diff(robot->range, -1.3));
     draw_point(robot);
     if (robot->ranges.size() < 5) {
         return;
@@ -201,3 +115,90 @@ main(int argc, char* argv[])
 
     return viz_run(argc, argv);
 }
+
+
+// performs desired rotation on robot 
+// void 
+// turn_robot(Robot* robot, const MOVE type) 
+// {
+//     const double buffer = 0.1;
+//     const double leftAngleDiff = angle_diff(robot->range, WEST);
+//     const double rightAngleDiff = abs(angle_diff(robot->range, EAST));
+
+//     is_turning = true;
+
+//     switch(type) {
+//         case LEFT:
+//             if (leftAngleDiff > 0.01) {
+//                 cout << leftAngleDiff << endl;
+//                 robot->set_vel(-4.0, 4.0);
+
+//                 if (leftAngleDiff > 0.005) {
+//                     robot->set_vel(-1.0, 1.0);
+//                 }
+//             }
+//             break;
+//         case RIGHT:
+//             if (rightAngleDiff > 0.01) {
+//                 cout << rightAngleDiff << endl;
+//                 robot->set_vel(4.0, -4.0);
+
+//                 if (rightAngleDiff > 0.005) {
+//                     robot->set_vel(1.0, -1.0);
+//                 }
+//             }
+//             break;
+//         case FORWARD:
+//             robot->set_vel(3.0, 3.0);
+//             is_turning = false;
+//             break;
+//     }
+
+//     is_following = true;
+// }
+
+// void 
+// wall_follow(Robot* robot) 
+// {
+//     gazebo::common::Time currTime = gazebo::common::Time::GetWallTime();
+//     const double buffer = 0.1;
+//     const double leftAngleDiff = angle_diff(robot->range, WEST);
+//     const double rightAngleDiff = angle_diff(robot->range, EAST);
+
+//     // if (leftAngleDiff < buffer || rightAngleDiff < buffer || robot->range < 1.7) {
+//     //     robot->set_vel(5.0, 5.0);
+//     // }
+
+//     // spot opening
+//     cout << "Range: " << robot->range << endl;
+//     if(robot->range > 4.0) {
+//         // move faster if facing north or south and enter opening
+//         if (abs(angle_diff(robot->range, NORTH)) < buffer) {
+//             cout << "Going straight-ish" << endl;
+
+//             turn_robot(robot, FORWARD);
+            
+//             // wait before turning while robot moves forward
+//             if (simTime == 0) {
+//                 simTime = currTime.Double();
+//             }
+
+//             cout << "TIME:" << simTime - currTime.Double() << endl;
+//             if (currTime.Double() - simTime > 2.5) {
+//                 is_opening = true;
+//             }
+
+//             // decide to turn left or right
+//             if (is_opening) {
+//                 cout << "open" << endl;
+//                 if (leftAngleDiff > 0) {
+//                     turn_robot(robot, LEFT);
+//                 } else if (rightAngleDiff < 0) {
+//                     turn_robot(robot, RIGHT);
+//                 }
+//             }
+//         }
+//     } else {
+//         turn_robot(robot, FORWARD);
+//     }
+// }
