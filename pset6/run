@@ -1,0 +1,5 @@
+#!/bin/bash
+
+rm brain/brain
+make
+./demo.sh
