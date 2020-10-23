@@ -1,8 +1,11 @@
+# Project 6 - Maze Pt. 2
 
-# Gazebo Simulation HW
+Nicole Danuwidjaja
 
-This contains a simulation setup and sample control program for assignments in a
-university robotics course.
+Write a control program that enables a simulated robot to wander a maze and generate a map.
 
-This requires [Gazebo](http://gazebosim.org/) and is intended to work on a
-(non-virtualized) Ubuntu 20.04 or Debian 10 system.
+Strategy: The robot will attempt to wander the entire maze using the wall following strategy. The total size of the map is precalculated and discretized so that it is represented by a Cell class. The robot has three sensors for forward, left, and right. When the robot encounters an obstacle, it will create a thread to mark the cell as occupied (red); if no obstacle is encountered, the robot will mark the cell as free (yellow).
+
+Used Bayesian statistics and occupancy grid mapping to calculate and generate the maze on GTK+ Widget.
+
+YouTube Video: 
