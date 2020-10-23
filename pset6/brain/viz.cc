@@ -6,13 +6,13 @@
 #include <thread>
 #include <mutex>
 #include <cmath>
-#include <vector>
 using namespace std;
 
 typedef lock_guard<mutex> guard;
 
 #include <X11/Xlib.h>
 #include <gtk/gtk.h>
+#include "viz.hh"
 
 /* Surface to store current scribbles */
 std::mutex mx;
@@ -24,13 +24,7 @@ GMutex mutex_interface;
 /* Map properties */
 int START_X = -20;
 int START_Y = -20;
-int CELL_WIDTH = 50;
-int CELL_HEIGHT = 50;
 int W_WIDTH, W_HEIGHT; // default: 618 x 618
-int NUM_ROWS = W_WIDTH / CELL_WIDTH;
-int NUM_COLS = W_HEIGHT / CELL_HEIGHT;
-/* Occupancy Grid Mapping map representation */
-vector<vector<double> > map(NUM_ROWS, vector<double>(NUM_COLS));   
 
 
 static void
@@ -94,6 +88,8 @@ draw_brush(GtkWidget *widget,
            gdouble    x,
            gdouble    y)
 {
+    GDK_THREADS_ENTER();
+    guard _gg(mx);
     cairo_t *cr;
 
     //GdkRectangle rect;
@@ -103,14 +99,74 @@ draw_brush(GtkWidget *widget,
     /* Paint to the surface, where we store our state */
     cr = cairo_create(surface);
 
-    cairo_rectangle(cr, x - 3, y - 3, 6, 6);
+    cairo_rectangle(cr, x - 1, y - 1, 2, 2);
     cairo_fill(cr);
 
     cairo_destroy(cr);
 
     /* Now invalidate the affected region of the drawing area. */
-    gtk_widget_queue_draw_area(widget, x - 3, y - 3, 6, 6);
+    gtk_widget_queue_draw_area(widget, x - 1, y - 1, 2, 2);
+    GDK_THREADS_LEAVE();
 }
+
+/* Draw a colored rectangle to represent a wall at given position */
+static void 
+draw_wall(GtkWidget *widget,
+           gdouble    x,
+           gdouble    y)
+{
+    GDK_THREADS_ENTER();
+    guard _gg(mx);
+    cairo_t *cr;
+
+    //GdkRectangle rect;
+    //gtk_widget_get_allocation(widget, &rect);
+    //cout << "rect: " << rect.x << "," << rect.y << endl;
+
+    /* Paint to the surface, where we store our state */
+    cr = cairo_create(surface);
+
+    cout << "Draw occupied space" << endl;
+    cairo_rectangle(cr, x - 1, y - 1, 2, 2);
+    cairo_set_source_rgb(cr, 200, 28, 0);
+    cairo_fill(cr);
+
+    cairo_destroy(cr);
+
+    /* Now invalidate the affected region of the drawing area. */
+    gtk_widget_queue_draw_area(widget, x - 1, y - 1, 2, 2);
+    GDK_THREADS_LEAVE();
+}
+
+/* Draw a colored rectangle to represent a free space at given position */
+static void 
+draw_free(GtkWidget *widget,
+           gdouble    x,
+           gdouble    y)
+{
+    GDK_THREADS_ENTER();
+    guard _gg(mx);
+    cairo_t *cr;
+
+    //GdkRectangle rect;
+    //gtk_widget_get_allocation(widget, &rect);
+    //cout << "rect: " << rect.x << "," << rect.y << endl;
+
+    /* Paint to the surface, where we store our state */
+    cr = cairo_create(surface);
+
+    cout << "Draw free space" << endl;
+    cairo_rectangle(cr, x - 1, y - 1, 2, 2);
+    cairo_set_source_rgb(cr, 0.55, 0.55, 0.55);
+    cairo_fill(cr);
+
+    cairo_destroy(cr);
+
+    /* Now invalidate the affected region of the drawing area. */
+    gtk_widget_queue_draw_area(widget, x - 1, y - 1, 2, 2);
+    GDK_THREADS_LEAVE();
+}
+
 
 /* Handle button press events by either drawing a rectangle
  * or clearing the surface, depending on which button was pressed.
@@ -157,7 +213,8 @@ motion_notify_event_cb (GtkWidget      *widget,
                         GdkEventMotion *event,
                         gpointer        data)
 {
-    g_mutex_lock(&mutex_interface);
+    GDK_THREADS_ENTER();
+    guard _gg(mx);
     /* paranoia check, in case we haven't gotten a configure event */
     if (surface == NULL)
         return FALSE;
@@ -168,7 +225,7 @@ motion_notify_event_cb (GtkWidget      *widget,
     */
 
     /* We've handled it, stop processing */
-    g_mutex_unlock(&mutex_interface);
+    GDK_THREADS_LEAVE();
     return TRUE;
 }
 
@@ -234,9 +291,6 @@ viz_hit(float range, float angle)
 {
     GDK_THREADS_ENTER();
     guard _gg(mx);
-    g_mutex_lock(&mutex_interface);
-
-    // default: 309
     gtk_window_get_size(GTK_WINDOW(window), &W_WIDTH, &W_HEIGHT);
     int mid = min(W_WIDTH, W_HEIGHT) / 2;
     angle += (M_PI / 2.0);
@@ -259,27 +313,6 @@ viz_hit(float range, float angle)
     */
 
     draw_brush(drawing_area, xx, yy);
-    g_mutex_unlock(&mutex_interface);
-    GDK_THREADS_LEAVE();
-}
-
-
-/* Render cell points on map based on their probability. */
-int 
-render_points()
-{
-    GDK_THREADS_ENTER();
-    g_mutex_lock(&mutex_interface);
-    // find position in map representation and store value
-    for (int row = 0; row < NUM_ROWS; row++) {
-        for (int col = 0; col < NUM_COLS; col++) {
-            double x = row * CELL_WIDTH + (CELL_WIDTH / 2);
-            double y = -(col * CELL_HEIGHT + (CELL_HEIGHT / 2));
-            // add the cell's value to map
-            draw_brush(drawing_area, x, y);
-        }
-    }
-    g_mutex_unlock(&mutex_interface);
     GDK_THREADS_LEAVE();
 }
 
@@ -287,38 +320,34 @@ render_points()
 Draws approximate location of the sensor hit and maps out representation of the board with Cairo. 
 Adapted from: https://github.com/navinrahim/RoboND-Occupancy-Grid-Mapping-Algorithm/blob/master/main.cpp
 */
-int
-viz_pos(float pos_x, float pos_y, float angle, float dist) 
+void
+viz_pos(Cell map[][280]) 
 {
-    g_mutex_lock(&mutex_interface);
-    guard _gg(mx);
-    cout << "pos_x, pos_y " << pos_x << ", " << pos_y << endl;
+    // find position in map representation and store value
+    for (int row = 0; row < 280; row++) {
+        for (int col = 0; col < 280; col++) {
+            // double x = row * CELL_WIDTH + (CELL_WIDTH / 2);
+            // double y = -(col * CELL_HEIGHT + (CELL_HEIGHT / 2));
+            // add the cell's value to map
+            // cout << "Cell Val: " << map[row][col] << endl;
+            cout << "Draw!" << endl;
+            Cell curr = map[row][col];
+            
+            int cell_height = row * 2.5;
+            int cell_width = col * 2.5;
+            draw_brush(drawing_area, cell_height, cell_width);
 
-    // default: 309
-    int mid = min(W_WIDTH, W_HEIGHT) / 2;
+            cout << "Cell prob: " << curr.prob << endl;
 
-    // assign a Bayesian probability value based on length of distance
-    
-    
-    double prob = 0;
-    if (dist < 2) {
-        prob = 0.9;
-    } else {
-        dist = 2;
+            if (curr.prob == 0) {
+                draw_free(drawing_area, cell_height, cell_width);
+            } else if (curr.prob > 0.9) {
+                draw_wall(drawing_area, cell_height, cell_width);
+            }
+        }
     }
-
-    // TODO: Find position
-    cout << "dist: " << dist << endl;
-    float x = dist * cos(pos_x);
-    float y = dist * sin(pos_y);
-    cout << "new pos_x, new pos_y " << x << ", " << y << endl;
-    // int x = mid + (CELL_WIDTH * new_x) + START_X;
-    // int y = W_HEIGHT - (mid + (CELL_HEIGHT * new_y) + START_Y);
-    cout << "x, y: " << x << y << endl;
-    map[x][y] = map[x][y] + prob;
-    render_points();
-    g_mutex_unlock(&mutex_interface);
 }
+
 
 /* Initializes the visualizer */
 int

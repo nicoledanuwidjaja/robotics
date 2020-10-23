@@ -1,14 +1,18 @@
 #include <iostream>
 #include <thread>
 #include <math.h>
-
 #include "robot.hh"
 #include "viz.hh"
 
 using std::cout;
 using std::endl;
 
+
+/* Occupancy Grid Mapping map representation */
+Cell map[280][280];
+
 /* Robot State Properties */
+double start_time = -1;
 bool is_following = false;
 bool is_turning = false;
 bool is_opening = false;
@@ -33,12 +37,39 @@ angle_avg(float* angv, size_t angc)
 
 /* Draws point based on the range, robot's position, and robot's angle */
 void
-draw_point(Robot* robot) 
+render_point(Robot* robot) 
 {
     for (auto hit : robot->ranges) {
-        // viz_hit(hit.range, hit.angle);
-        viz_pos(robot->pos_x, robot->pos_y, robot->pos_t, hit.range);
         //cout << hit.range << "@" << hit.angle << endl;
+        float pos_x = robot->pos_x;
+        float pos_y = robot->pos_y;
+        float angle = robot->pos_t;
+        cout << "Robot points: " << pos_x << " " << pos_y << endl;
+        float dist = hit.range;
+        // assign a Bayesian probability value based on length of distance
+        double prob = 0;
+        if (dist < 2) {
+            prob = 0.9;
+        } else {
+            dist = 2;
+        }
+
+        // calculate hit position
+        float dx = (dist * 4) * cos(angle);
+        float dy = (dist * 4) * sin(angle);
+        int normPosX = 180 + pos_x;
+        int normPosY = 180 + pos_y;
+        cout << "Plotted points: " << normPosX << " " << normPosY << endl;
+        int x = (int) round(normPosX + dx);
+        int y = (int) round(normPosY + dy);
+        cout << "x, y: " << x << " " << y << endl;
+
+        // add position to map
+        Cell hit_cell;
+        hit_cell.num_hits = map[x][y].num_hits + 1;
+        hit_cell.prob = map[x][y].prob + prob;
+        cout << "Cell Prob: " << hit_cell.prob << endl;
+        map[x][y] = hit_cell;
     }
 }
 
@@ -47,7 +78,13 @@ callback(Robot* robot)
 {
     // const double leftAngleDiff = angle_diff(robot->range, 1.3);
     // const double rightAngleDiff = abs(angle_diff(robot->range, -1.3));
-    draw_point(robot);
+    render_point(robot);
+    if (robot->stamp - start_time > 2) {
+        cout << "I reached here" << endl;
+        start_time = robot->stamp;
+        viz_pos(map);
+    }
+    
     if (robot->ranges.size() < 5) {
         return;
     }
@@ -88,7 +125,7 @@ callback(Robot* robot)
         }
     }
 
-    cout << "Speed,Turn = " << speed << "," << turn << endl;
+    // cout << "Speed,Turn = " << speed << "," << turn << endl;
     robot->set_vel(speed + turn, speed - turn);
 
     /*
@@ -115,90 +152,3 @@ main(int argc, char* argv[])
 
     return viz_run(argc, argv);
 }
-
-
-// performs desired rotation on robot 
-// void 
-// turn_robot(Robot* robot, const MOVE type) 
-// {
-//     const double buffer = 0.1;
-//     const double leftAngleDiff = angle_diff(robot->range, WEST);
-//     const double rightAngleDiff = abs(angle_diff(robot->range, EAST));
-
-//     is_turning = true;
-
-//     switch(type) {
-//         case LEFT:
-//             if (leftAngleDiff > 0.01) {
-//                 cout << leftAngleDiff << endl;
-//                 robot->set_vel(-4.0, 4.0);
-
-//                 if (leftAngleDiff > 0.005) {
-//                     robot->set_vel(-1.0, 1.0);
-//                 }
-//             }
-//             break;
-//         case RIGHT:
-//             if (rightAngleDiff > 0.01) {
-//                 cout << rightAngleDiff << endl;
-//                 robot->set_vel(4.0, -4.0);
-
-//                 if (rightAngleDiff > 0.005) {
-//                     robot->set_vel(1.0, -1.0);
-//                 }
-//             }
-//             break;
-//         case FORWARD:
-//             robot->set_vel(3.0, 3.0);
-//             is_turning = false;
-//             break;
-//     }
-
-//     is_following = true;
-// }
-
-// void 
-// wall_follow(Robot* robot) 
-// {
-//     gazebo::common::Time currTime = gazebo::common::Time::GetWallTime();
-//     const double buffer = 0.1;
-//     const double leftAngleDiff = angle_diff(robot->range, WEST);
-//     const double rightAngleDiff = angle_diff(robot->range, EAST);
-
-//     // if (leftAngleDiff < buffer || rightAngleDiff < buffer || robot->range < 1.7) {
-//     //     robot->set_vel(5.0, 5.0);
-//     // }
-
-//     // spot opening
-//     cout << "Range: " << robot->range << endl;
-//     if(robot->range > 4.0) {
-//         // move faster if facing north or south and enter opening
-//         if (abs(angle_diff(robot->range, NORTH)) < buffer) {
-//             cout << "Going straight-ish" << endl;
-
-//             turn_robot(robot, FORWARD);
-            
-//             // wait before turning while robot moves forward
-//             if (simTime == 0) {
-//                 simTime = currTime.Double();
-//             }
-
-//             cout << "TIME:" << simTime - currTime.Double() << endl;
-//             if (currTime.Double() - simTime > 2.5) {
-//                 is_opening = true;
-//             }
-
-//             // decide to turn left or right
-//             if (is_opening) {
-//                 cout << "open" << endl;
-//                 if (leftAngleDiff > 0) {
-//                     turn_robot(robot, LEFT);
-//                 } else if (rightAngleDiff < 0) {
-//                     turn_robot(robot, RIGHT);
-//                 }
-//             }
-//         }
-//     } else {
-//         turn_robot(robot, FORWARD);
-//     }
-// }
