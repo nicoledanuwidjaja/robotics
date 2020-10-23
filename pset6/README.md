@@ -8,4 +8,4 @@ Strategy: The robot will attempt to wander the entire maze using the wall follow
 
 Used Bayesian statistics and occupancy grid mapping to calculate and generate the maze on GTK+ Widget.
 
-YouTube Video: 
+YouTube Video: https://youtu.be/uqbISrT-EkA 
