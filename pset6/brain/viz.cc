@@ -99,6 +99,7 @@ draw_brush(GtkWidget *widget,
     /* Paint to the surface, where we store our state */
     cr = cairo_create(surface);
 
+    cout << "Draw rectangle" << endl;
     cairo_rectangle(cr, x - 1, y - 1, 2, 2);
     cairo_fill(cr);
 
@@ -127,14 +128,14 @@ draw_wall(GtkWidget *widget,
     cr = cairo_create(surface);
 
     cout << "Draw occupied space" << endl;
-    cairo_rectangle(cr, x - 1, y - 1, 2, 2);
+    cairo_rectangle(cr, x - 1, y - 1, 10, 10);
     cairo_set_source_rgb(cr, 200, 28, 0);
     cairo_fill(cr);
 
     cairo_destroy(cr);
 
     /* Now invalidate the affected region of the drawing area. */
-    gtk_widget_queue_draw_area(widget, x - 1, y - 1, 2, 2);
+    gtk_widget_queue_draw_area(widget, x - 1, y - 1, 10, 10);
     GDK_THREADS_LEAVE();
 }
 
@@ -156,14 +157,14 @@ draw_free(GtkWidget *widget,
     cr = cairo_create(surface);
 
     cout << "Draw free space" << endl;
-    cairo_rectangle(cr, x - 1, y - 1, 2, 2);
+    cairo_rectangle(cr, x - 1, y - 1, 3, 3);
     cairo_set_source_rgb(cr, 0.55, 0.55, 0.55);
     cairo_fill(cr);
 
     cairo_destroy(cr);
 
     /* Now invalidate the affected region of the drawing area. */
-    gtk_widget_queue_draw_area(widget, x - 1, y - 1, 2, 2);
+    gtk_widget_queue_draw_area(widget, x - 1, y - 1, 3, 3);
     GDK_THREADS_LEAVE();
 }
 
@@ -340,8 +341,12 @@ viz_pos(Cell map[][280])
             cout << "Cell prob: " << curr.prob << endl;
 
             if (curr.prob == 0) {
+                cout << "I'M GOING INTO HERE" << endl;
                 draw_free(drawing_area, cell_height, cell_width);
-            } else if (curr.prob > 0.9) {
+            }
+            
+            if (curr.prob >= 0.9) {
+                cout << "JK I'M HERE" << endl;
                 draw_wall(drawing_area, cell_height, cell_width);
             }
         }

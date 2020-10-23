@@ -39,18 +39,22 @@ angle_avg(float* angv, size_t angc)
 void
 render_point(Robot* robot) 
 {
+    cout << "Render!" << endl;
     for (auto hit : robot->ranges) {
         //cout << hit.range << "@" << hit.angle << endl;
         float pos_x = robot->pos_x;
         float pos_y = robot->pos_y;
         float angle = robot->pos_t;
-        cout << "Robot points: " << pos_x << " " << pos_y << endl;
+        // cout << "Robot points: " << pos_x << " " << pos_y << endl;
         float dist = hit.range;
         // assign a Bayesian probability value based on length of distance
         double prob = 0;
         if (dist < 2) {
+            cout << "Object detected, I think" << endl;
             prob = 0.9;
         } else {
+            cout << "Clear" << endl;
+            prob = 0.0;
             dist = 2;
         }
 
@@ -59,10 +63,9 @@ render_point(Robot* robot)
         float dy = (dist * 4) * sin(angle);
         int normPosX = 180 + pos_x;
         int normPosY = 180 + pos_y;
-        cout << "Plotted points: " << normPosX << " " << normPosY << endl;
         int x = (int) round(normPosX + dx);
         int y = (int) round(normPosY + dy);
-        cout << "x, y: " << x << " " << y << endl;
+        cout << "Plot x, y: " << x << " " << y << endl;
 
         // add position to map
         Cell hit_cell;
@@ -79,14 +82,15 @@ callback(Robot* robot)
     // const double leftAngleDiff = angle_diff(robot->range, 1.3);
     // const double rightAngleDiff = abs(angle_diff(robot->range, -1.3));
     render_point(robot);
+    
+    if (robot->ranges.size() < 5) {
+        return;
+    }
+
     if (robot->stamp - start_time > 2) {
         cout << "I reached here" << endl;
         start_time = robot->stamp;
         viz_pos(map);
-    }
-    
-    if (robot->ranges.size() < 5) {
-        return;
     }
 
     float left = clamp(0.0, robot->ranges[2].range, 4.0);
@@ -115,7 +119,7 @@ callback(Robot* robot)
             speed = 0;
             turn = 2;
 
-            if (left < 1 && right < 1) {
+            if (left < 1.5 && right < 1.5) {
                 turn = -2;
             }
         } else if (right < 1.5) {
