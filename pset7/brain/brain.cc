@@ -1,5 +1,5 @@
-
 #include <iostream>
+#include <algorithm>
 #include <thread>
 #include <math.h>
 #include <map>
@@ -36,19 +36,19 @@ typedef pair<long,long> Posn;
 #define OCC_FREE -0.5
 
 double speed_modifier = 0.9;
-
 time_t last_on_wall = 0;
-
 int going_wf = FORWARD;
 int prev_dir = NORTH;
 double prev_ang = 0;
 int turns = 0;
+
 struct Cell {
-    // Posn loc; // cell location (redundant value)
+    Posn loc; // location
     bool seen;  // has the cell been seen?
     double occupied; // how occupied it is. negative is free/empty, positive is a wall
-    // long not_wall; // how much of empty it is
-    // long wall; // how much of wall it is
+    vector<Cell> neighbors; // adjacent neighbor cells
+    Cell* parent; // node that connects to shortest path
+    float goal_distance; // distance away from goal 
 };
 
 double x_pos_vals[20];
@@ -250,7 +250,9 @@ void draw_current(long xx, long yy, double occ_add) {
         occ_val = clamp(-5, iti->second.occupied + occ_add, 5);
         o_grid.erase(iti);
     }
-    struct Cell ci = {true, occ_val};
+    struct Cell ci;
+    ci.seen = true;
+    ci.occupied = occ_val;
     o_grid.emplace(make_pair(xx, yy), ci); // emplace checks if key is unique
     // cout << "Pair x: " << xx << endl;
     // cout << "Pair y: " << yy << endl;
@@ -425,7 +427,6 @@ void move_robot(Robot* robot) {
         }
     }
 
-
     if (min_range < 1.0) {
         robot->set_vel(speed_modifier* 2.0, speed_modifier* -3.0);
         last_velo_0 = speed_modifier* 2.0;
@@ -476,34 +477,84 @@ void acc_pos(Robot* robot) {
     }
 }
 
-/* A* searching algorithm */
-void find_path(Pair src, Pair dest) {
-    int start_x = src.first;
-    int start_y = src.second;
-    // stores open list of cell position and properties
-    // f = heuristic = g + h (row/column indices)
-    pair<double, Posn> final_list;
-    pair<double, Posn> free_list;
-    freeList.insert(make_pair(0.0, src));
-    bool reached_dest = false;
-
-    while(!freeList.empty()) {
-        pair<double, Posn> final_list = *free_list.begin();
-        free_list.erase(free_list.begin());
-
-        src.first = final_list.second.first;
-        src.second = final_list.second.second;
-        final_list[src.first][src.second] = true;
-
-        for (auto it = free_list.begin(); it != free_list.end(); it++) {
-            auto item = *it;
-            if (item->getHeur() <= final_list[src.first][src.second]->getHeur()) {
-                final_list[src.first][src.second] = item;
-            }
+/* Add neighbors for a given cell */
+void add_neighbors(Cell c) {
+    // boundaries of map: [-35, 35] (x, y)
+    if (c.neighbors.empty()) {
+        cout << "Loc: " << c.loc.first << endl;
+        cout << "second Loc: " << c.loc.second << endl;
+        // north neighbor
+        if (c.loc.second < 35) {
+            struct Cell neighbor;
+            neighbor.loc = make_pair(c.loc.first, c.loc.second + 1);
+            c.neighbors.push_back(neighbor);
+        }
+        // west neighbor
+        if (c.loc.first > -35) {
+            struct Cell neighbor;
+            neighbor.loc = make_pair(c.loc.first - 1, c.loc.second);
+            c.neighbors.push_back(neighbor);
+        }
+        // south neighbor
+        if (c.loc.second > -35) {
+            struct Cell neighbor;
+            neighbor.loc = make_pair(c.loc.first, c.loc.second - 1);
+            c.neighbors.push_back(neighbor);
+        }
+        // east neighbor
+        if (c.loc.first < 35) {
+            struct Cell neighbor;
+            neighbor.loc = make_pair(c.loc.first + 1, c.loc.second);
+            c.neighbors.push_back(neighbor);
         }
     }
+    return;
+}
 
+/* calculate heuristic distance cost */
+float get_heur(pair<int, int> src, pair<int, int> dest) {
+    return sqrtf(pow((src.first - dest.first), 2) + pow((src.second - dest.second), 2));
+}
 
+/* Compare cells based on their f-scores */
+bool compare_dist(const Cell& c1, const Cell& c2) {
+    return c1.goal_distance < c2.goal_distance;
+}
+
+/* A* searching algorithm */
+void find_path(pair<int, int> src, pair<int, int> dest) {
+    int start_x = src.first;
+    int start_y = src.second;
+    Posn curr = make_pair(start_x, start_y);
+    Cell start_cell = o_grid.find(curr)->second;
+    start_cell.goal_distance = get_heur(src, dest);
+    cout << "Goal Distance: " << start_cell.goal_distance;
+    add_neighbors(start_cell);
+    // stores open list of cell properties and f-score
+    // f = heuristic = g + h (row/column indices)
+    vector<Cell> final_list;
+    vector<Cell> free_list;
+    free_list.insert(start_cell);
+    bool reached_dest = false;
+
+    while (!free_list.empty()) {
+        std::sort(free_list.begin(), free_list.end(), compare_dist);
+        // obtain value in free_list with the lowest f score
+        auto min_cell = std::min_element(free_list.begin(), free_list.end(), compare_dist);
+        // final_list = free_list.begin();
+        // free_list.erase(final_list);
+
+        // src.first = final_list.second.first;
+        // src.second = final_list.second.second;
+        // final_list[src.first][src.second] = true;
+
+        // for (auto it = free_list.begin(); it != free_list.end(); it++) {
+        //     auto item = *it;
+        //     if (get_heur(item) <= get_heur(final_list[src.first][src.second])) {
+        //         final_list[src.first][src.second] = item;
+        //     }
+        // }
+    }
 }
 
 void callback(Robot* robot) {
@@ -523,7 +574,7 @@ void callback(Robot* robot) {
 
     move_robot(robot);
 
-    pair<int, int> start = make_pair(robot->x, robot->y);
+    pair<int, int> start = make_pair(robot->pos_x, robot->pos_y);
     pair<int, int> end = make_pair(20, 0);
 
     find_path(start, end);
