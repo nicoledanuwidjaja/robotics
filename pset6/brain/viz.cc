@@ -129,7 +129,7 @@ draw_wall(GtkWidget *widget,
 
     cout << "Draw occupied space" << endl;
     cairo_rectangle(cr, x - 1, y - 1, 10, 10);
-    cairo_set_source_rgb(cr, 200, 28, 0);
+    cairo_set_source_rgb(cr, 3, 255, 0);
     cairo_fill(cr);
 
     cairo_destroy(cr);
@@ -336,16 +336,14 @@ viz_pos(Cell map[][280])
             
             int cell_height = row * 2.5;
             int cell_width = col * 2.5;
-            draw_brush(drawing_area, cell_height, cell_width);
+            // draw_brush(drawing_area, cell_height, cell_width);
 
             cout << "Cell prob: " << curr.prob << endl;
 
             if (curr.prob == 0) {
                 cout << "I'M GOING INTO HERE" << endl;
                 draw_free(drawing_area, cell_height, cell_width);
-            }
-            
-            if (curr.prob >= 0.9) {
+            } else if (curr.prob >= 0.9) {
                 cout << "JK I'M HERE" << endl;
                 draw_wall(drawing_area, cell_height, cell_width);
             }

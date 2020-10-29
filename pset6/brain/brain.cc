@@ -35,6 +35,26 @@ angle_avg(float* angv, size_t angc)
     return avg > M_PI ? (-2 * M_PI) + avg : avg;
 }
 
+/* Calculate position and probability of obstacle detection */
+void
+calculate_prob(float dist, float angle, float pos_x, float pos_y) {
+    // calculate hit position
+    float dx = (dist * 4) * cos(angle);
+    float dy = (dist * 4) * sin(angle);
+    int normPosX = 180 + pos_x;
+    int normPosY = 180 + pos_y;
+    int x = (int) round(normPosX + dx);
+    int y = (int) round(normPosY + dy);
+    cout << "Plot x, y: " << x << " " << y << endl;
+
+    // add position to map
+    Cell hit_cell;
+    hit_cell.num_hits = map[x][y].num_hits + 1;
+    hit_cell.prob = map[x][y].prob + 0;
+    cout << "Cell Prob: " << hit_cell.prob << endl;
+    map[x][y] = hit_cell;
+}
+
 /* Draws point based on the range, robot's position, and robot's angle */
 void
 render_point(Robot* robot) 
@@ -58,21 +78,22 @@ render_point(Robot* robot)
             dist = 2;
         }
 
-        // calculate hit position
-        float dx = (dist * 4) * cos(angle);
-        float dy = (dist * 4) * sin(angle);
-        int normPosX = 180 + pos_x;
-        int normPosY = 180 + pos_y;
-        int x = (int) round(normPosX + dx);
-        int y = (int) round(normPosY + dy);
-        cout << "Plot x, y: " << x << " " << y << endl;
+        // // mark all spaces within range as free
+        // for (int i = 0; i < dist; i++) {
+        //     int curr_x = (int) round(sin(angle) * i);
+        //     int curr_y = (int) round(cos(angle) * i);
+        //     int x = (int) round(pos_x + curr_x);
+        //     int y = (int) round(pos_y + curr_y);
 
-        // add position to map
-        Cell hit_cell;
-        hit_cell.num_hits = map[x][y].num_hits + 1;
-        hit_cell.prob = map[x][y].prob + prob;
-        cout << "Cell Prob: " << hit_cell.prob << endl;
-        map[x][y] = hit_cell;
+        //     // add position to map
+        //     Cell curr_cell;
+        //     curr_cell.num_hits = map[x][y].num_hits + 1;
+        //     curr_cell.prob = 0;
+        //     cout << "Curr Cell Prob: " << curr_cell.prob << endl;
+        //     map[x][y] = curr_cell;
+        // }
+
+        calculate_prob(dist, angle, pos_x, pos_y);
     }
 }
 
@@ -83,54 +104,33 @@ callback(Robot* robot)
     // const double rightAngleDiff = abs(angle_diff(robot->range, -1.3));
     render_point(robot);
     
-    if (robot->ranges.size() < 5) {
-        return;
-    }
-
-    if (robot->stamp - start_time > 2) {
+    if (robot->stamp - start_time > 2 && robot->stamp < 1000000) {
         cout << "I reached here" << endl;
         start_time = robot->stamp;
         viz_pos(map);
     }
-
-    float left = clamp(0.0, robot->ranges[2].range, 4.0);
-    float forward = clamp(0.0, robot->ranges[3].range, 4.0);
-    float right = clamp(0.0, robot->ranges[4].range, 4.0);
     
-    cout << "Left,Forward,Right Angles = "
-         << left << ","
-         << forward << ","
-         << right << endl;
+    // cout << "Left,Forward,Right Angles = "
+    //      << left << ","
+    //      << forward << ","
+    //      << right << endl;
 
-    float speed = forward - 1.0;
-    float turn = clamp(-1.0, left - right, 1.0);
-
-    // Cases to Consider:
-    // If no forward, move north
-    // If forward, move right
-    // If left and forward, move right
-    // If right and forward, move left
-    if (forward > 1.2) {
-      speed = 5;
-      turn = 0;
-    } else {
-        if (forward < 1.2) {
-            cout << "Turn right" << endl;
-            speed = 0;
-            turn = 2;
-
-            if (left < 1.5 && right < 1.5) {
-                turn = -2;
-            }
-        } else if (right < 1.5) {
-            turn = 2;
-        } else if (left < 1.5) {
-            turn = -2;
-        }
+    if (robot->ranges.size() < 5) {
+        return;
     }
 
-    // cout << "Speed,Turn = " << speed << "," << turn << endl;
-    robot->set_vel(speed + turn, speed - turn);
+    float lft = clamp(0.0, robot->ranges[2].range, 2.0);
+    float fwd = clamp(0.0, robot->ranges[3].range, 2.0);
+    float rgt = clamp(0.0, robot->ranges[4].range, 2.0);
+    float spd = fwd - 1.0;
+    float trn = clamp(-1.0, lft - rgt, 1.0);
+
+    if (fwd < 1.2) {
+      spd = 0;
+      trn = 1;
+    }
+    
+    robot->set_vel(spd + trn, spd - trn);
 
     /*
     cout << "x,y,t = "
