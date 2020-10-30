@@ -541,6 +541,7 @@ void find_path(pair<int, int> src, pair<int, int> dest) {
         std::sort(free_list.begin(), free_list.end(), compare_dist);
         // obtain value in free_list with the lowest f score
         auto min_cell = std::min_element(free_list.begin(), free_list.end(), compare_dist);
+
         // final_list = free_list.begin();
         // free_list.erase(final_list);
 
