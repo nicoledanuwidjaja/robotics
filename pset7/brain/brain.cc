@@ -518,14 +518,19 @@ float get_heur(pair<int, int> src, pair<int, int> dest) {
 
 /* Compare cells based on their f-scores */
 bool compare_dist(const Cell& c1, const Cell& c2) {
-    return c1.goal_distance < c2.goal_distance;
+    return c1.goal_distance > c2.goal_distance;
 }
 
 /* A* searching algorithm */
 void find_path(pair<int, int> src, pair<int, int> dest) {
     int start_x = src.first;
     int start_y = src.second;
+    int end_x = dest.first;
+    int end_y = dest.seconds;
+    
     Posn curr = make_pair(start_x, start_y);
+    Posn end = make_pair(end_x, end_y);
+    Cell end_cell = o_grid.find(end)->second;
     Cell start_cell = o_grid.find(curr)->second;
     start_cell.goal_distance = get_heur(src, dest);
     cout << "Goal Distance: " << start_cell.goal_distance;
@@ -540,21 +545,20 @@ void find_path(pair<int, int> src, pair<int, int> dest) {
     while (!free_list.empty()) {
         std::sort(free_list.begin(), free_list.end(), compare_dist);
         // obtain value in free_list with the lowest f score
-        auto min_cell = std::min_element(free_list.begin(), free_list.end(), compare_dist);
-
-        // final_list = free_list.begin();
-        // free_list.erase(final_list);
-
-        // src.first = final_list.second.first;
-        // src.second = final_list.second.second;
-        // final_list[src.first][src.second] = true;
-
-        // for (auto it = free_list.begin(); it != free_list.end(); it++) {
-        //     auto item = *it;
-        //     if (get_heur(item) <= get_heur(final_list[src.first][src.second])) {
-        //         final_list[src.first][src.second] = item;
-        //     }
-        // }
+        // auto min_cell = std::min_element(free_list.begin(), free_list.end(), compare_dist);
+        // pop top item in the list
+	Cell min_cell = free_list.front();
+        free_list.erase(free_list.begin());
+	final_list.push_back(min_cell);
+        // check if goal was found
+	if (min_cell == end_cell) {
+	    vector<Posn> path;
+	    Cell curr = min_cell;
+	    while (curr == NULL) {
+		path.push_back(curr.loc);
+		curr = curr.parent;
+	    }
+	}
     }
 }
 
