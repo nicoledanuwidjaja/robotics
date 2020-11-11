@@ -2,12 +2,16 @@
 #include <string>
 #include <vector>
 
+#include <time.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include "robot.hh"
+
 #include "opencv2/core/utility.hpp"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/highgui.hpp"
-
-#include "robot.hh"
 
 using std::cout;
 using std::endl;
