@@ -1,1 +1,0 @@
-# Project 8 - Computer Vision
