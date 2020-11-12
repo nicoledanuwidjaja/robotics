@@ -367,9 +367,7 @@ bool bresenham_int(int x1, int y1, int x2, int y2, bool hit, bool find, std::vec
           
           init = true;
       }
-  }
-  else
-  {
+  } else {
       // error may go below zero
       int error(delta_x - (delta_y >> 1));
 
