@@ -976,12 +976,14 @@ void main_drive(Robot *robot)
 
   // std::vector<float> v = {brgt, rgt, frgt, fwd, flft, lft, blft};
 
-  for (int i = 0; i < target_path.size(); ++i)
-  {
-    float dx = float(target_path[i][0] * grid_div) - float(grid_offset);
-    float dy = float(target_path[i][1] * grid_div) - float(grid_offset);
-    cout << i << " " << target_path[i][0] << " " << target_path[i][1] << " " << dx << " " << dy << endl;
-  }
+  // for (int i = 0; i < target_path.size(); ++i)
+  // {
+  //   float dx = float(target_path[i][0] * grid_div) - float(grid_offset);
+  //   float dy = float(target_path[i][1] * grid_div) - float(grid_offset);
+  //   cout << i << " " << target_path[i][0] << " " << target_path[i][1] << " " << dx << " " << dy << endl;
+  // }
+
+  
 
   if (has_path)
   {
@@ -1037,69 +1039,8 @@ void main_drive(Robot *robot)
   cout << "Speed:" << speed << " Turn:" << turn << endl;
 
   cout << "Range:" << robot->range << endl;
+  // Update motion based on reading
   cmd_vel(robot, speed, speed, false);
-
-  // TODO: Update all logic for sensors
-  // if (fwd < 1.2 || frgt < f_min || flft < f_min) {
-  //   if (lft < 1.0 && flft > 1.8 || left_follow) {
-  //     cout << "A1" << endl;
-  //     cmd_vel(robot, -speed, speed, false);
-  //   } else if (rgt < 1.0 && frgt > 1.8 || right_follow) {
-  //     cout << "A2" << endl;
-  //     cmd_vel(robot, speed, -speed, false);
-  //   } else if (rgt + frgt > lft + flft) {
-  //     cout << "B1" << endl;
-  //     cmd_vel(robot, speed, -speed, false);
-  //   } else {
-  //     cout << "B2" << endl;
-  //     cmd_vel(robot, -speed, speed, false);
-  //   }
-  // } else if ( lft < 1.8 && lft > 1.1 && flft > lft ) {
-  //   cout << "E" << endl;
-  //   cmd_vel(robot, speed - turn, speed + turn, false);
-  // } else if ((flft / sqrt(2) < f2_min || lft < f2_min)) {
-  //   if (flft / sqrt(2) < 0.6 && lft < flft / sqrt(2)) {
-  //     cmd_vel(robot, speed, speed, false);
-  //   } else if (lft / 1.3 > flft / sqrt(2) || flft / sqrt(2) < f_min) {
-  //     cmd_vel(robot, speed + turn, speed - turn, false);
-  //     cout << "F1" << endl;
-  //   } else if (lft * 1.3 < flft / sqrt(2) && flft < f3_min) {
-  //     cmd_vel(robot, speed - turn, speed + turn, false);
-  //     cout << "F2" << endl;
-  //   } else {
-  //     cmd_vel(robot, speed, speed, false);
-  //   }
-  // } else if (rgt < 1.8 && rgt > 1.1 && frgt > rgt && blft > 1.7 && lft > 1.7 && flft > 1.7) {
-  //   cout << "C" << endl;
-  //   cmd_vel(robot, speed + turn, speed - turn, false);
-  // } else if ((frgt / sqrt(2) < f2_min || rgt < f2_min) && blft > 1.7 && lft > 1.7 && flft > 1.7) {
-  //   if (frgt / sqrt(2) < 0.6 && rgt < frgt / sqrt(2)) {
-  //     cmd_vel(robot, speed, speed, false);
-  //   } else if (rgt / 1.3 > frgt / sqrt(2) || frgt / sqrt(2) < f_min) {
-  //     cmd_vel(robot, speed - turn, speed + turn, false);
-  //     cout << "D1" << endl;
-  //   } else if (rgt * 1.3 < frgt / sqrt(2) && frgt < f3_min) {
-  //     cmd_vel(robot, speed + turn, speed - turn, false);
-  //     cout << "D2" << endl;
-  //   } else {
-  //     cmd_vel(robot, speed, speed, false);
-  //   }
-  // } else if (((blft < 1.5 && (lft > 1.5 || flft > 1.5)) || (lft < 1.3 && flft > 1.5)) && rgt > 1.2) {
-  //   cmd_vel(robot, speed - turn * 2, speed + turn, false);
-  //   cout << "G" << endl;
-  // } else if (((brgt < 1.5 && (rgt > 1.5 || frgt > 1.5)) || (rgt < 1.3 && frgt > 1.5)) && lft > 1.2) {
-  //   cmd_vel(robot, speed + turn, speed - turn * 2, false);
-  //   cout << "G2" << endl;
-  // } else {
-  //   cmd_vel(robot, speed, speed, false);
-  //   cout << "fwd" << endl;
-  //   if (rgt > 1.8 && frgt > 1.8) {
-  //     right_follow = false;
-  //   }
-  //   if (lft > 1.8 && flft > 1.8) {
-  //     left_follow = false;
-  //   }
-  // }
 }
 
 /*

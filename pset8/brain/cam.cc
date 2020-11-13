@@ -52,6 +52,7 @@ void cam_show(Mat frame)
         Scharr(canny, dy, CV_16S, 0, 1);
         Canny(dx, dy, final, scharr, scharr * 3);
 
+        // Used hough lines logic from OpenCV code.
         vector<Vec2f> lines;
         HoughLines(final, lines, 1, CV_PI / 180, 100, 0, 0);
         
